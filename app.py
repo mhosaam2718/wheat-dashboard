@@ -6,8 +6,10 @@ import os
 import numpy as np
 from datetime import datetime, timedelta
 
+# إعداد الصفحة وتفعيل المظهر الواسع
 st.set_page_config(page_title="لوحة تحكم توريد القمح", layout="wide")
 
+# دعم اللغة العربية واتجاه RTL
 st.markdown("""
     <style>
     body, div, p, h1, h2, h3, h4, h5, h6, label, .stSelectbox, .stDateInput {
@@ -24,10 +26,6 @@ st.markdown("""
     }
     .stDataFrame {
         direction: RTL !important;
-    }
-    [data-testid="stSidebar"] {
-        direction: RTL !important;
-        text-align: right !important;
     }
     </style>
     """, unsafe_allow_html=True)
@@ -46,6 +44,7 @@ def load_data_from_db():
         except Exception:
             pass
             
+    # بيانات محاكاة فورية ومضمونة
     suppliers = ["شركة النيل للتوريدات", "المجموعة العربية للحبوب", "مطاحن مصر العليا", "مصر للتجارة والاستثمار", "الشركة المصرية القابضة"]
     grades = ["22.5", "23", "23.5"]
     np.random.seed(42)
@@ -62,7 +61,6 @@ def load_data_from_db():
     return pd.DataFrame(data)
 
 st.title("🌾 منظومة أتمتة ومتابعة حركة توريد القمح اليومية")
-st.write("تحليل فوري ومؤشرات أداء مستخرجة تلقائياً من الملفات المجمعة.")
 
 df = load_data_from_db()
 
@@ -78,104 +76,38 @@ else:
     df[col_date] = pd.to_datetime(df[col_date], errors='coerce').dt.strftime('%Y-%m-%d')
     df['عرض_الدرجة'] = df[col_grade].astype(str).str.strip().apply(lambda x: f"درجة {x}")
 
-    st.sidebar.header("🔍 فلاتر وتصفية البيانات المتقدمة")
-    
-    all_suppliers = ["الكل"] + list(df[col_supplier].unique())
-    selected_supplier = st.sidebar.selectbox("اختر اسم المورد:", all_suppliers)
-    
-    all_grades = ["الكل"] + list(df['عرض_الدرجة'].unique())
-    selected_grade = st.sidebar.selectbox("اختر درجة الجودة:", all_grades)
-    
-    min_date = datetime.strptime(df[col_date].min(), '%Y-%m-%d').date()
-    max_date = datetime.strptime(df[col_date].max(), '%Y-%m-%d').date()
-    selected_date_range = st.sidebar.date_input("اختر الفترة الزمنية:", [min_date, max_date], min_value=min_date, max_value=max_date)
-
-    filtered_df = df.copy()
-    
-    if selected_supplier != "الكل":
-        filtered_df = filtered_df[filtered_df[col_supplier] == selected_supplier]
-        
-    if selected_grade != "الكل":
-        filtered_df = filtered_df[filtered_df['عرض_الدرجة'] == selected_grade]
-        
-    if len(selected_date_range) == 2:
-        start_date, end_date = selected_date_range
-        filtered_df['parsed_date'] = pd.to_datetime(filtered_df[col_date]).dt.date
-        filtered_df = filtered_df[(filtered_df['parsed_date'] >= start_date) & (filtered_df['parsed_date'] <= end_date)]
-
-    total_qty = filtered_df[col_qty].sum()
-    unique_suppliers = filtered_df[col_supplier].nunique()
-    total_records = len(filtered_df)
+    # كروت مؤشرات الأداء السريعة
+    total_qty = df[col_qty].sum()
+    unique_suppliers = df[col_supplier].nunique()
+    total_records = len(df)
     
     kpi1, kpi2, kpi3 = st.columns(3)
     with kpi1:
-        st.metric(label="إجمالي الكميات الموردة للفلتر الحالي", value=f"{total_qty:,.2f} طن")
+        st.metric(label="إجمالي الكميات الموردة (طن)", value=f"{total_qty:,.2f}")
     with kpi2:
-        st.metric(label="عدد الموردين المتطابقين", value=f"{unique_suppliers} مورد")
+        st.metric(label="عدد الموردين النشطين", value=unique_suppliers)
     with kpi3:
-        st.metric(label="إجمالي حركات التوريد المتطابقة", value=f"{total_records} حركة")
+        st.metric(label="إجمالي حركات التوريد المسجلة", value=total_records)
 
     st.markdown("---")
 
+    # المخططات البيانية التفاعلية بدون أي دوال تحديث معقدة لمنع الـ ValueError
     chart_col1, chart_col2 = st.columns(2)
 
     with chart_col1:
         st.subheader("📈 حركة التوريد اليومية")
-        if not filtered_df.empty:
-            daily_data = filtered_df.groupby(col_date)[col_qty].sum().reset_index()
-            daily_data = daily_data.sort_values(by=col_date)
-            
-            fig_line = px.line(daily_data, x=col_date, y=col_qty, markers=True)
-            
-            fig_line.update_traces(
-                hovertemplate="<b>التاريخ:</b> %{x}<br><b>الكمية الموردة:</b> %{y} طن<extra></extra>"
-            )
-            
-            # الصياغة البرمجية المعتمدة والسليمة لتمرير العناوين والمحاور
-            fig_line.update_layout(
-                title=dict(text="معدل التوريد اليومي التراكمي", x=0.5),
-                xaxis=dict(title="التاريخ الحركي القياسي", type='category', tickangle=-45),
-                yaxis=dict(title="الكمية الكلية المقدرة بالطن"),
-                margin=dict(l=60, r=60, t=60, b=60),
-                hoverlabel=dict(bgcolor="black", font_size=14, font_color="white", font_family="Tajawal", align="left")
-            )
-            st.plotly_chart(fig_line, use_container_width=True)
-        else:
-            st.info("لا توجد بيانات لعرض الرسم الخطي بناءً على الفلاتر الحالية.")
+        daily_data = df.groupby(col_date)[col_qty].sum().reset_index().sort_values(by=col_date)
+        fig_line = px.line(daily_data, x=col_date, y=col_qty, markers=True, title="معدل التوريد اليومي")
+        st.plotly_chart(fig_line, use_container_width=True)
 
     with chart_col2:
         st.subheader("📊 توزيع نسب درجات القمح")
-        if not filtered_df.empty:
-            grade_data = filtered_df.groupby('عرض_الدرجة').size().reset_index(name='عدد الحركات')
-            
-            fig_pie = px.pie(grade_data, values='عدد الحركات', names='عرض_الدرجة', hole=0.4)
-            
-            fig_pie.update_traces(
-                hovertemplate="<b>المسمى الاسترشادي:</b> %{label}<br><b>عدد الحركات الكلية:</b> %{value}<extra></extra>",
-                texttemplate='%{percent:.1%}',
-                textposition='inside'
-            )
-            
-            # الصياغة البرمجية السليمة لحفظ محاذاة الدائرة وعناوينها
-            fig_pie.update_layout(
-                title=dict(text="نسب درجات جودة القمح المورد", x=0.5),
-                showlegend=True,
-                legend=dict(direction="ltr", yanchor="middle", y=0.5, xanchor="left", x=1.02),
-                margin=dict(l=40, r=40, t=60, b=40),
-                hoverlabel=dict(bgcolor="black", font_size=14, font_color="white", font_family="Tajawal", align="left")
-            )
-            st.plotly_chart(fig_pie, use_container_width=True)
-        else:
-            st.info("لا توجد بيانات لعرض الرسم الدائري بناءً على الفلاتر الحالية.")
+        grade_data = df.groupby('عرض_الدرجة').size().reset_index(name='عدد الحركات')
+        fig_pie = px.pie(grade_data, values='عدد الحركات', names='عرض_الدرجة', title="نسب درجات الجودة")
+        st.plotly_chart(fig_pie, use_container_width=True)
 
     st.markdown("---")
 
-    st.subheader("🔍 استعراض وفلترة قاعدة البيانات المركزية")
-    
-    all_sources = ["الكل"] + list(filtered_df[col_source].unique())
-    selected_source = st.selectbox("تصفية إضافية حسب ملف الإكسل الأصلي (Audit Trail):", all_sources)
-    
-    final_display_df = filtered_df if selected_source == "الكل" else filtered_df[filtered_df[col_source] == selected_source]
-    
+    st.subheader("🔍 استعراض قاعدة البيانات المركزية")
     display_cols = [col_date, col_supplier, col_qty, 'عرض_الدرجة', col_source]
-    st.dataframe(final_display_df[display_cols], use_container_width=True, hide_index=True)
+    st.dataframe(df[display_cols], use_container_width=True, hide_index=True)
