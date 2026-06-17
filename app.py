@@ -38,7 +38,7 @@ DB_PATH = "./database/wheat_data.db"
 
 @st.cache_data(ttl=1)
 def load_data_from_db():
-    """دالة ذكية ومضمونة: تقرأ من قاعدة البيانات إذا وجدت، وإذا لم تجدها تولد فوراً بيانات عرض متكاملة أونلاين لضمان عمل الديزاين"""
+    """دالة ذكية: تقرأ من قاعدة البيانات، وإذا كانت فارغة تولد بيانات محاكاة فورية أونلاين لضمان عمل الديزاين"""
     if os.path.exists(DB_PATH):
         try:
             conn = sqlite3.connect(DB_PATH)
@@ -49,10 +49,10 @@ def load_data_from_db():
         except Exception:
             pass
             
-    # --- كود المحاكاة الفوري والذكي لملء البيانات على السيرفر تلقائياً ---
+    # --- كود المحاكاة التلقائي لملء البيانات على السيرفر تلقائياً بأعلى جودة وعزل الأرقام عن الحروف ---
     suppliers = ["شركة النيل للتوريدات", "المجموعة العربية للحبوب", "مطاحن مصر العليا", "مصر للتجارة والاستثمار", "الشركة المصرية القابضة"]
     grades = ["22.5", "23", "23.5"]
-    np.random.seed(42) # لتثبيت مظهر الجرافات وجعلها متناسقة دائماً
+    np.random.seed(42)
     
     rows_count = 150
     data = {
@@ -80,7 +80,7 @@ else:
     col_supplier = 'اسم_المورد'
     col_source = 'مصدر_البيانات'
 
-    # معالجة التواريخ لضمان الترتيب السليم
+    # معالجة صيغ التواريخ لضمان الترتيب البصري
     df[col_date] = pd.to_datetime(df[col_date], errors='coerce').dt.strftime('%Y-%m-%d')
     df['عرض_الدرجة'] = df[col_grade].astype(str).str.strip().apply(lambda x: f"درجة {x}")
 
@@ -97,7 +97,7 @@ else:
     max_date = datetime.strptime(df[col_date].max(), '%Y-%m-%d').date()
     selected_date_range = st.sidebar.date_input("اختر الفترة الزمنية:", [min_date, max_date], min_value=min_date, max_value=max_date)
 
-    # تطبيق الفلاتر
+    # تطبيق الفلاتر برمجياً
     filtered_df = df.copy()
     
     if selected_supplier != "الكل":
@@ -126,7 +126,7 @@ else:
 
     st.markdown("---")
 
-    # --- المخططات البيانية التفاعلية بعد حظر قلب النصوص والتسميات الجانبية المشوهة ---
+    # --- المخططات البيانية التفاعلية عالية الأداء وتعديل بنية العناوين والمحاور ---
     chart_col1, chart_col2 = st.columns(2)
 
     with chart_col1:
@@ -135,14 +135,17 @@ else:
             daily_data = filtered_df.groupby(col_date)[col_qty].sum().reset_index()
             daily_data = daily_data.sort_values(by=col_date)
             
-            fig_line = px.line(daily_data, x=col_date, y=col_qty, markers=True)
+            # كتابة مسمى الرسم مباشرة داخل دالة px.line لمنع خطأ الـ ValueError
+            fig_line = px.line(daily_data, x=col_date, y=col_qty, markers=True, title="معدل التوريد اليومي التراكمي")
+            
             fig_line.update_traces(
                 hovertemplate="<b>التاريخ:</b> %{x}<br><b>الكمية الموردة:</b> %{y} طن<extra></extra>"
             )
+            
             fig_line.update_layout(
-                title={'text': "معدل التوريد اليومي التراكمي", 'y': 0.95, 'x': 0.5, 'xanchor': 'center', 'yanchor': 'top'},
-                xaxis={'title': "التاريخ الحركي القياسي", 'title_font': {'size': 14}, 'type': 'category', 'tickangle': -45},
-                yaxis={'title': "الكمية الكلية المقدرة بالطن", 'title_font': {'size': 14}},
+                title_x=0.5, # توسيط العنوان البرمجي بشكل صحيح ومستقل
+                xaxis=dict(title="التاريخ الحركي القياسي", type='category', tickangle=-45),
+                yaxis=dict(title="الكمية الكلية المقدرة بالطن"),
                 margin=dict(l=60, r=60, t=60, b=60),
                 hoverlabel=dict(bgcolor="black", font_size=14, font_color="white", font_family="Tajawal", align="left")
             )
@@ -154,14 +157,18 @@ else:
         st.subheader("📊 توزيع نسب درجات القمح")
         if not filtered_df.empty:
             grade_data = filtered_df.groupby('عرض_الدرجة').size().reset_index(name='عدد الحركات')
-            fig_pie = px.pie(grade_data, values='عدد الحركات', names='عرض_الدرجة', hole=0.4)
+            
+            # كتابة مسمى الرسم مباشرة داخل دالة px.pie لمنع الانهيار البرمجي
+            fig_pie = px.pie(grade_data, values='عدد الحركات', names='عرض_الدرجة', hole=0.4, title="نسب درجات جودة القمح المورد")
+            
             fig_pie.update_traces(
                 hovertemplate="<b>المسمى الاسترشادي:</b> %{label}<br><b>عدد الحركات الكلية:</b> %{value}<extra></extra>",
                 texttemplate='%{percent:.1%}',
                 textposition='inside'
             )
+            
             fig_pie.update_layout(
-                title={'text': "نسب درجات جودة القمح المورد", 'y':0.95, 'x':0.5, 'xanchor': 'center', 'yanchor': 'top'},
+                title_x=0.5, # توسيط عنوان الدائرة بشكل مستقل وآمن
                 showlegend=True,
                 legend=dict(direction="ltr", yanchor="middle", y=0.5, xanchor="left", x=1.02),
                 margin=dict(l=40, r=40, t=60, b=40),
