@@ -125,14 +125,15 @@ else:
             daily_data = filtered_df.groupby(col_date)[col_qty].sum().reset_index()
             daily_data = daily_data.sort_values(by=col_date)
             
-            fig_line = px.line(daily_data, x=col_date, y=col_qty, markers=True, title="معدل التوريد اليومي التراكمي")
+            fig_line = px.line(daily_data, x=col_date, y=col_qty, markers=True)
             
             fig_line.update_traces(
                 hovertemplate="<b>التاريخ:</b> %{x}<br><b>الكمية الموردة:</b> %{y} طن<extra></extra>"
             )
             
+            # الصياغة البرمجية المعتمدة والسليمة لتمرير العناوين والمحاور
             fig_line.update_layout(
-                title_x=0.5,
+                title=dict(text="معدل التوريد اليومي التراكمي", x=0.5),
                 xaxis=dict(title="التاريخ الحركي القياسي", type='category', tickangle=-45),
                 yaxis=dict(title="الكمية الكلية المقدرة بالطن"),
                 margin=dict(l=60, r=60, t=60, b=60),
@@ -147,7 +148,7 @@ else:
         if not filtered_df.empty:
             grade_data = filtered_df.groupby('عرض_الدرجة').size().reset_index(name='عدد الحركات')
             
-            fig_pie = px.pie(grade_data, values='عدد الحركات', names='عرض_الدرجة', hole=0.4, title="نسب درجات جودة القمح المورد")
+            fig_pie = px.pie(grade_data, values='عدد الحركات', names='عرض_الدرجة', hole=0.4)
             
             fig_pie.update_traces(
                 hovertemplate="<b>المسمى الاسترشادي:</b> %{label}<br><b>عدد الحركات الكلية:</b> %{value}<extra></extra>",
@@ -155,8 +156,9 @@ else:
                 textposition='inside'
             )
             
+            # الصياغة البرمجية السليمة لحفظ محاذاة الدائرة وعناوينها
             fig_pie.update_layout(
-                title_x=0.5,
+                title=dict(text="نسب درجات جودة القمح المورد", x=0.5),
                 showlegend=True,
                 legend=dict(direction="ltr", yanchor="middle", y=0.5, xanchor="left", x=1.02),
                 margin=dict(l=40, r=40, t=60, b=40),
